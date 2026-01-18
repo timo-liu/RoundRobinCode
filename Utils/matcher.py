@@ -1,19 +1,19 @@
 import pandas as pd
 import os
 import math
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
-def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : str = "berger", save_to : str = "Matchups"):
+def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : str = "berger") -> Dict[str, Dict[str, pd.DataFrame]]:
 	"""
 	Give everyone seeds, match top to bottom seeds, and create a fake 'Seed 0' Bye archer for odd numbers
 	:param scores:
 	:return:
 	"""
 
-	os.makedirs(save_to, exist_ok=True)
-
 	divisions = scores["Division"].unique()
+	flight_dict = {}
 	for division in divisions:
+		flight_dict[division] = {}
 		round_cols = [f"R{i}" for i in range(1, 11)]
 		section = scores[scores["Division"] == division].copy()
 		section["QualScore"] = section[round_cols].sum(axis=1)
@@ -25,8 +25,6 @@ def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : 
 		flights = [section.iloc[i:i+people_per_flights] for i in range(0, len(section), people_per_flights)]
 
 		for i, flight in enumerate(flights):
-
-			output_path = os.path.join(save_to, f"{division}-Flight{i}.tsv")
 			if len(flight) % 2 != 0:
 				bye = pd.DataFrame([{
 					"Name": "BYE",
@@ -38,7 +36,8 @@ def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : 
 			flight = flight.reset_index(drop=True)
 			flight_names = flight["Name"].tolist()
 			division_matchups = rr(flight_names, algorithm)
-			division_matchups.to_csv(output_path, sep="\t", index=False)
+			flight_dict[division][i + 1] = division_matchups
+	return flight_dict
 
 
 def o_n_alternate(lower_bound : int = 0, upper_bound : int = 100):

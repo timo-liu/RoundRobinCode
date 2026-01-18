@@ -58,14 +58,33 @@ if process_clicked:
             match condition:
                 case "Individual RR":
                     final_matchups = match_individuals(df, num_flights=num_flights, algorithm=algorithm)
-                    st.write(final_matchups)
-                    csv = final_matchups.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download CSV",
-                        data=csv,
-                        file_name='matchups.csv',
-                        mime='text/csv',
-                    )
+                    final_matchups = match_individuals(df, num_flights=num_flights, algorithm=algorithm)
+
+                    # To gather all flights into one DataFrame for download
+                    all_flights_list = []
+
+                    for division, flight_info in final_matchups.items():
+                        for flight_number, flights in flight_info.items():
+                            st.markdown(f"### Division: {division} | Flight Number: {flight_number}")
+                            st.dataframe(flights)
+                            # Add metadata columns for CSV output (optional)
+                            flights_copy = flights.copy()
+                            flights_copy['Division'] = division
+                            flights_copy['Flight Number'] = flight_number
+                            all_flights_list.append(flights_copy)
+
+                    # Combine all flights for CSV download
+                    if all_flights_list:
+                        combined_df = pd.concat(all_flights_list, ignore_index=True)
+                        csv = combined_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="Download CSV",
+                            data=csv,
+                            file_name='matchups.csv',
+                            mime='text/csv',
+                        )
+                    else:
+                        st.warning("No matchup data to download.")
                 case "2 Person Teams":
                     st.warning("2 Person Teams is not implemented yet.")
                 case "3 Person Teams":
