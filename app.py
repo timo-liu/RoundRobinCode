@@ -165,7 +165,6 @@ if uploaded_file is not None:
 
 if df is not None:
     st.success("File loaded successfully!")
-    st.dataframe(df.head())
 
     # Division inputs immediately after upload
     if "Division" in df.columns:
@@ -190,7 +189,6 @@ if df is not None:
             st.session_state.division_sizes[division] = val
 
         division_sizes = st.session_state.division_sizes
-        st.write("Division configuration:", division_sizes)
     else:
         st.warning("No 'Division' column found in the uploaded file.")
 
@@ -213,7 +211,7 @@ if process_clicked:
             # Here we pass the division_sizes.values() as before.
             final_matchups = match_individuals(
                 df,
-                people_per_flight=division_sizes.values() if division_sizes else [num_flights],
+                people_per_flight=list(division_sizes.values()) if division_sizes else 4,
                 algorithm=algorithm
             )
 
