@@ -167,7 +167,25 @@ if process_clicked:
             st.error(f"Failed to read the file: {e}")
         else:
             st.success("File loaded successfully!")
-            st.dataframe(df.head())
+            # After df is loaded successfully
+            if "Division" in df.columns:
+                st.markdown("### Division Settings")
+
+                division_sizes = {}
+
+                for division in sorted(df["Division"].dropna().unique()):
+                    division_sizes[division] = st.number_input(
+                        label=f"People per Flight for Division {division}",
+                        min_value=1,
+                        max_value=16,
+                        value=4,  # default pre-filled value
+                        step=1,
+                        key=f"division_{division}_size"
+                    )
+
+                st.write("Division configuration:", division_sizes)
+            else:
+                st.warning("No 'Division' column found in the uploaded file.")
 
             st.info(
                 f"Processing {format_type} | "
@@ -179,7 +197,7 @@ if process_clicked:
             if format_type == "Round Robin":
                 final_matchups = match_individuals(
                     df,
-                    people_per_flight=num_flights,
+                    people_per_flight=division_sizes.values(),
                     algorithm=algorithm
                 )
 

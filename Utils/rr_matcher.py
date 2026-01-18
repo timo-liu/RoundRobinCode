@@ -1,8 +1,8 @@
 import pandas as pd
 import math
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
-def match_individuals(scores : pd.DataFrame, people_per_flight : int = 8, algorithm : str = "berger") -> Dict[str, Dict[str, pd.DataFrame]]:
+def match_individuals(scores : pd.DataFrame, people_per_flight : Union[int, List[int]] = 8, algorithm : str = "berger") -> Dict[str, Dict[str, pd.DataFrame]]:
 	"""
 	Give everyone seeds, match top to bottom seeds, and create a fake 'Seed 0' Bye archer for odd numbers
 	:param scores:
@@ -10,8 +10,13 @@ def match_individuals(scores : pd.DataFrame, people_per_flight : int = 8, algori
 	"""
 
 	divisions = scores["Division"].unique()
+
+	if isinstance(people_per_flight, List):
+		assert len(people_per_flight) == len(divisions), "List entry people per flight should match the number of divisions."
+
 	flight_dict = {}
-	for division in divisions:
+	for d, division in enumerate(divisions):
+		people_in_this_flight = people_per_flight if isinstance(people_per_flight, int) else people_per_flight[d]
 		flight_dict[division] = {}
 		if "QualScore" not in scores.columns:
 			round_cols = [f"R{i}" for i in range(1, 11)]
@@ -22,9 +27,7 @@ def match_individuals(scores : pd.DataFrame, people_per_flight : int = 8, algori
 			section = scores[scores["Division"] == division].copy()
 		section = section.sort_values(by=["QualScore"], ascending=False)
 
-		num_flights =len(section) // people_per_flight
-
-		flights = [section.iloc[i:i+people_per_flight] for i in range(0, len(section), people_per_flight)]
+		flights = [section.iloc[i:i+people_in_this_flight] for i in range(0, len(section), people_in_this_flight)]
 
 		for i, flight in enumerate(flights):
 			if len(flight) % 2 != 0:
