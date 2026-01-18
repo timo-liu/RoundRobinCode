@@ -149,94 +149,110 @@ with st.container():
             team_size = None
             st.markdown("")
 
+# Variables to hold state
+df = None
+division_sizes = {}
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_csv(uploaded_file, sep="\t")
+    except Exception as e:
+        st.error(f"Failed to read the file: {e}")
+        df = None
+
+if df is not None:
+    st.success("File loaded successfully!")
+    st.dataframe(df.head())
+
+    # Division inputs immediately after upload
+    if "Division" in df.columns:
+        st.markdown("### Division Settings")
+
+        # We need to retain division_sizes across reruns, so use st.session_state
+        if "division_sizes" not in st.session_state:
+            st.session_state.division_sizes = {
+                division: 4 for division in sorted(df["Division"].dropna().unique())
+            }
+
+        # Display inputs and update session_state
+        for division in sorted(df["Division"].dropna().unique()):
+            val = st.number_input(
+                label=f"People per Flight for Division {division}",
+                min_value=1,
+                max_value=16,
+                value=st.session_state.division_sizes.get(division, 4),
+                step=1,
+                key=f"division_{division}_size"
+            )
+            st.session_state.division_sizes[division] = val
+
+        division_sizes = st.session_state.division_sizes
+        st.write("Division configuration:", division_sizes)
+    else:
+        st.warning("No 'Division' column found in the uploaded file.")
+
 process_clicked = st.button("Process Matchups")
 
-# =========================
-# PROCESSING
-# =========================
 if process_clicked:
-    if uploaded_file is None:
+    if df is None:
         st.error("Please upload a scores file first!")
     else:
-        try:
-            if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_csv(uploaded_file, sep="\t")
-        except Exception as e:
-            st.error(f"Failed to read the file: {e}")
-        else:
-            st.success("File loaded successfully!")
-            # After df is loaded successfully
-            if "Division" in df.columns:
-                st.markdown("### Division Settings")
+        st.info(
+            f"Processing {format_type} | "
+            f"Flights: {num_flights} | "
+            f"Algorithm: {algorithm} | "
+            f"Team Size: {team_size}"
+        )
 
-                division_sizes = {}
-
-                for division in sorted(df["Division"].dropna().unique()):
-                    division_sizes[division] = st.number_input(
-                        label=f"People per Flight for Division {division}",
-                        min_value=1,
-                        max_value=16,
-                        value=4,  # default pre-filled value
-                        step=1,
-                        key=f"division_{division}_size"
-                    )
-
-                st.write("Division configuration:", division_sizes)
-            else:
-                st.warning("No 'Division' column found in the uploaded file.")
-
-            st.info(
-                f"Processing {format_type} | "
-                f"Flights: {num_flights} | "
-                f"Algorithm: {algorithm} | "
-                f"Team Size: {team_size}"
+        if format_type == "Round Robin":
+            # Pass a list of people per flight per division:
+            # If you want to pass a dict or list depends on match_individuals API.
+            # Here we pass the division_sizes.values() as before.
+            final_matchups = match_individuals(
+                df,
+                people_per_flight=division_sizes.values() if division_sizes else [num_flights],
+                algorithm=algorithm
             )
 
-            if format_type == "Round Robin":
-                final_matchups = match_individuals(
-                    df,
-                    people_per_flight=division_sizes.values(),
-                    algorithm=algorithm
+            all_flights_list = []
+
+            for division, flight_info in final_matchups.items():
+                for flight_number, flights in flight_info.items():
+                    st.markdown(
+                        f"### Division: {division} | Flight: {flight_number}"
+                    )
+                    st.dataframe(flights)
+
+                    flights_copy = flights.copy()
+                    flights_copy["Division"] = division
+                    flights_copy["Flight Number"] = flight_number
+                    all_flights_list.append(flights_copy)
+
+            if all_flights_list:
+                combined_df = pd.concat(all_flights_list, ignore_index=True)
+
+                # CSV download
+                csv = combined_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download CSV",
+                    csv,
+                    "matchups.csv",
+                    "text/csv"
                 )
 
-                all_flights_list = []
-
-                for division, flight_info in final_matchups.items():
-                    for flight_number, flights in flight_info.items():
-                        st.markdown(
-                            f"### Division: {division} | Flight: {flight_number}"
-                        )
-                        st.dataframe(flights)
-
-                        flights_copy = flights.copy()
-                        flights_copy["Division"] = division
-                        flights_copy["Flight Number"] = flight_number
-                        all_flights_list.append(flights_copy)
-
-                if all_flights_list:
-                    combined_df = pd.concat(all_flights_list, ignore_index=True)
-
-                    # CSV
-                    csv = combined_df.to_csv(index=False).encode("utf-8")
-                    st.download_button(
-                        "Download CSV",
-                        csv,
-                        "matchups.csv",
-                        "text/csv"
-                    )
-
-                    # PDF
-                    pdf_bytes = matchups_to_pdf(combined_df)
-                    st.download_button(
-                        "Download PDF",
-                        pdf_bytes,
-                        "matchups.pdf",
-                        "application/pdf"
-                    )
-                else:
-                    st.warning("No matchup data to download.")
-
+                # PDF download
+                pdf_bytes = matchups_to_pdf(combined_df)
+                st.download_button(
+                    "Download PDF",
+                    pdf_bytes,
+                    "matchups.pdf",
+                    "application/pdf"
+                )
             else:
-                st.warning("Eliminations are not implemented yet.")
+                st.warning("No matchup data to download.")
+
+        else:
+            st.warning("Eliminations are not implemented yet.")
