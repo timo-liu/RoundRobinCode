@@ -1,9 +1,8 @@
 import pandas as pd
-import os
 import math
 from typing import List, Tuple, Dict
 
-def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : str = "berger") -> Dict[str, Dict[str, pd.DataFrame]]:
+def match_individuals(scores : pd.DataFrame, people_per_flight : int = 8, algorithm : str = "berger") -> Dict[str, Dict[str, pd.DataFrame]]:
 	"""
 	Give everyone seeds, match top to bottom seeds, and create a fake 'Seed 0' Bye archer for odd numbers
 	:param scores:
@@ -14,15 +13,18 @@ def match_individuals(scores : pd.DataFrame, num_flights : int = 2, algorithm : 
 	flight_dict = {}
 	for division in divisions:
 		flight_dict[division] = {}
-		round_cols = [f"R{i}" for i in range(1, 11)]
-		section = scores[scores["Division"] == division].copy()
-		section["QualScore"] = section[round_cols].sum(axis=1)
-		section = section.drop(columns=round_cols)
+		if "QualScore" not in scores.columns:
+			round_cols = [f"R{i}" for i in range(1, 11)]
+			section = scores[scores["Division"] == division].copy()
+			section["QualScore"] = section[round_cols].sum(axis=1)
+			section = section.drop(columns=round_cols)
+		else:
+			section = scores[scores["Division"] == division].copy()
 		section = section.sort_values(by=["QualScore"], ascending=False)
 
-		people_per_flights = len(section) // num_flights
+		num_flights =len(section) // people_per_flight
 
-		flights = [section.iloc[i:i+people_per_flights] for i in range(0, len(section), people_per_flights)]
+		flights = [section.iloc[i:i+people_per_flight] for i in range(0, len(section), people_per_flight)]
 
 		for i, flight in enumerate(flights):
 			if len(flight) % 2 != 0:
@@ -75,7 +77,7 @@ def create_berger_matrix (number_of_competitors : int):
 	:param number_of_competitors:
 	:return:
 	"""
-	return [step_list_circular(list(range(1, number_of_competitors)), i) for i in range(1, number_of_competitors)]
+	return [step_list_circular(list(range(1, number_of_competitors)), i) for i in range(number_of_competitors - 1)]
 
 def rr_convolute(number_of_competitors : int, algorithm : str = "berger") -> List[List[Tuple[int,int]]]:
 	"""
@@ -85,7 +87,7 @@ def rr_convolute(number_of_competitors : int, algorithm : str = "berger") -> Lis
 	:return:
 	"""
 	assert not number_of_competitors % 2, "The number of competitors in a flight should be even."
-	number_of_rounds = int(number_of_competitors/2) * (number_of_competitors - 1)
+	number_of_rounds = (number_of_competitors - 1)
 
 	versus : List[List[Tuple[int,int]]] = [[] for _ in range(number_of_rounds)]
 
@@ -93,7 +95,7 @@ def rr_convolute(number_of_competitors : int, algorithm : str = "berger") -> Lis
 		case "berger":
 			matchups = create_berger_matrix(number_of_competitors)
 			for i in range(number_of_competitors - 1):
-				for j in range(number_of_competitors - 1):
+				for j in range(i, number_of_competitors - 1):
 					pair = (i + 1, j + 1)
 					if i == j:
 						pair = (i + 1, number_of_competitors)
@@ -109,7 +111,7 @@ def build_matches(names : List[str], matchups : List[List[Tuple[int,int]]]) -> p
 	:param matchups:
 	:return:
 	"""
-	final_lineup = pd.DataFrame(columns = ["Bale"]).set_index("Bale")
+	final_lineup = pd.DataFrame(columns = ["Bale"])
 	for round_number, round_info in enumerate(matchups):
 		round_names = []
 		for pair in round_info:
@@ -120,6 +122,7 @@ def build_matches(names : List[str], matchups : List[List[Tuple[int,int]]]) -> p
 		elif len(round_names) < len(final_lineup):
 			round_names += [None] * (len(final_lineup) - len(round_names))
 		final_lineup[f"Round {round_number + 1}"] = round_names
+	final_lineup.index = pd.RangeIndex(start=1, stop=1 + len(final_lineup))
 	return final_lineup
 
 def rr(names : List[str], algorithm : str = "berger") -> pd.DataFrame:

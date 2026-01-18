@@ -4,6 +4,9 @@ from Utils import *
 
 st.title("Round Robin Matcher")
 
+# =========================
+# Examples
+# =========================
 example_csv = """\
 Name\tDivision\tR1\tR2\tR3\tR4\tR5\tR6\tR7\tR8\tR9\tR10
 Archer1\tBB\t1\t1\t1\t1\t1\t1\t1\t1\t1\t1
@@ -11,33 +14,94 @@ Archer2\tBB\t1\t1\t1\t1\t1\t1\t1\t1\t1\t1
 Archer3\tFP\t1\t1\t1\t1\t1\t1\t1\t1\t1\t1
 """
 
+quals_example = """\
+Name\tDivision\tQualScore
+Archer1\tBB\t1
+Archer2\tBB\t1
+Archer3\tFP\t1
+"""
+
 st.markdown("### Expected CSV/TSV file structure:")
 st.code(example_csv, language="tsv")
+st.markdown("### Alternative CSV/TSV file structure:")
+st.code(quals_example, language="tsv")
 
+# =========================
+# Parameters Info
+# =========================
 with st.expander("Parameter Descriptions (click to expand)"):
     st.markdown("""
-    - **Number of Flights:** How many groups to split the competitors into for separate round robins.
-    - **Matching Algorithm:** The method used to generate matchups (currently only 'berger' round robin).
-    - **Remove Errors:** If enabled, rows with missing or invalid data will be excluded before processing.
-    - **Condition:** The competition format — currently only 'Individual RR' is implemented.
+    - **Format:** Competition structure (Round Robin or Eliminations).
+    - **Number of Flights:** Number of groups for Round Robin.
+    - **Matching Algorithm:** Method used to generate matchups.
+    - **People per Team:** Team size for eliminations.
+    - **Remove Errors:** Drop invalid rows before processing.
     """)
 
-# Upload file section
-uploaded_file = st.file_uploader("Upload your TSV or CSV scores file", type=["csv", "tsv", "txt"])
+# =========================
+# Upload
+# =========================
+uploaded_file = st.file_uploader(
+    "Upload your TSV or CSV scores file",
+    type=["csv", "tsv", "txt"]
+)
 
+# =========================
+# TOP-LEVEL FORMAT SELECTOR (CENTERED)
+# =========================
+st.markdown("---")
+format_col = st.columns([1, 2, 1])[1]
+with format_col:
+    format_type = st.selectbox(
+        "Competition Format",
+        options=["Round Robin", "Eliminations"],
+        index=0
+    )
+st.markdown("---")
+
+# =========================
+# OPTIONS
+# =========================
 with st.container():
     col1, col2, col3, col4 = st.columns(4)
+
     with col1:
-        num_flights = st.selectbox("Number of Flights", options=[1, 2, 3, 4], index=1)
+        num_flights = st.number_input(
+            "People per Flight",
+            min_value=1,
+            max_value=4,
+            value=2,
+            step=1,
+            disabled=(format_type != "Round Robin")
+        )
+
     with col2:
-        algorithm = st.selectbox("Matching Algorithm", options=["berger"], index=0)
+        algorithm = st.selectbox(
+            "Matching Algorithm",
+            options=["berger"],
+            index=0,
+            disabled=(format_type != "Round Robin")
+        )
+
     with col3:
         remove_errors = st.checkbox("Remove Errors", value=False)
+
     with col4:
-        condition = st.selectbox("Condition", options=["Individual RR", "2 Person Teams", "3 Person Teams"], index=0)
+        if format_type == "Eliminations":
+            team_size = st.selectbox(
+                "People per Team",
+                options=[1, 2, 3, 4],
+                index=1
+            )
+        else:
+            team_size = None
+            st.markdown("")
 
 process_clicked = st.button("Process Matchups")
 
+# =========================
+# PROCESSING
+# =========================
 if process_clicked:
     if uploaded_file is None:
         st.error("Please upload a scores file first!")
@@ -53,39 +117,45 @@ if process_clicked:
             st.success("File loaded successfully!")
             st.dataframe(df.head())
 
-            st.info(f"Processing with {num_flights} flights, algorithm '{algorithm}', condition '{condition}'...")
+            st.info(
+                f"Processing {format_type} | "
+                f"Flights: {num_flights} | "
+                f"Algorithm: {algorithm} | "
+                f"Team Size: {team_size}"
+            )
 
-            match condition:
-                case "Individual RR":
-                    final_matchups = match_individuals(df, num_flights=num_flights, algorithm=algorithm)
-                    final_matchups = match_individuals(df, num_flights=num_flights, algorithm=algorithm)
+            if format_type == "Round Robin":
+                final_matchups = match_individuals(
+                    df,
+                    people_per_flight=num_flights,
+                    algorithm=algorithm
+                )
 
-                    # To gather all flights into one DataFrame for download
-                    all_flights_list = []
+                all_flights_list = []
 
-                    for division, flight_info in final_matchups.items():
-                        for flight_number, flights in flight_info.items():
-                            st.markdown(f"### Division: {division} | Flight Number: {flight_number}")
-                            st.dataframe(flights)
-                            # Add metadata columns for CSV output (optional)
-                            flights_copy = flights.copy()
-                            flights_copy['Division'] = division
-                            flights_copy['Flight Number'] = flight_number
-                            all_flights_list.append(flights_copy)
-
-                    # Combine all flights for CSV download
-                    if all_flights_list:
-                        combined_df = pd.concat(all_flights_list, ignore_index=True)
-                        csv = combined_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="Download CSV",
-                            data=csv,
-                            file_name='matchups.csv',
-                            mime='text/csv',
+                for division, flight_info in final_matchups.items():
+                    for flight_number, flights in flight_info.items():
+                        st.markdown(
+                            f"### Division: {division} | Flight: {flight_number}"
                         )
-                    else:
-                        st.warning("No matchup data to download.")
-                case "2 Person Teams":
-                    st.warning("2 Person Teams is not implemented yet.")
-                case "3 Person Teams":
-                    st.warning("3 Person Teams is not implemented yet.")
+                        st.dataframe(flights)
+
+                        flights_copy = flights.copy()
+                        flights_copy["Division"] = division
+                        flights_copy["Flight Number"] = flight_number
+                        all_flights_list.append(flights_copy)
+
+                if all_flights_list:
+                    combined_df = pd.concat(all_flights_list, ignore_index=True)
+                    csv = combined_df.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        "Download CSV",
+                        csv,
+                        "matchups.csv",
+                        "text/csv"
+                    )
+                else:
+                    st.warning("No matchup data to download.")
+
+            else:
+                st.warning("Eliminations are not implemented yet.")
