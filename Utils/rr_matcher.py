@@ -122,6 +122,7 @@ def build_matches(names : List[str], matchups : List[List[Tuple[int,int]]]) -> p
 		elif len(round_names) < len(final_lineup):
 			round_names += [None] * (len(final_lineup) - len(round_names))
 		final_lineup[f"Round {round_number + 1}"] = round_names
+	final_lineup["Bale"] = ["A vs B" if i % 2 == 0 else "C vs D" for i in range(len(final_lineup))]
 	final_lineup.index = pd.RangeIndex(start=1, stop=1 + len(final_lineup))
 	return final_lineup
 

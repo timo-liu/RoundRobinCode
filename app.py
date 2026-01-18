@@ -1,6 +1,58 @@
 import streamlit as st
 import pandas as pd
 from Utils import *
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from io import BytesIO
+
+# region Utils
+def matchups_to_pdf(df: pd.DataFrame) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    grouped = df.groupby(["Division", "Flight Number"])
+
+    for (division, flight), table_df in grouped:
+        title = Paragraph(
+            f"<b>Division:</b> {division} &nbsp;&nbsp; <b>Flight:</b> {flight}",
+            styles["Heading2"]
+        )
+        story.append(title)
+        story.append(Spacer(1, 12))
+
+        table_data = [table_df.columns.tolist()] + table_df.values.tolist()
+
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+            ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ]))
+
+        story.append(table)
+        story.append(PageBreak())
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.read()
+
+# endregion Utils
+
 
 st.title("Round Robin Matcher")
 
@@ -147,12 +199,23 @@ if process_clicked:
 
                 if all_flights_list:
                     combined_df = pd.concat(all_flights_list, ignore_index=True)
+
+                    # CSV
                     csv = combined_df.to_csv(index=False).encode("utf-8")
                     st.download_button(
                         "Download CSV",
                         csv,
                         "matchups.csv",
                         "text/csv"
+                    )
+
+                    # PDF
+                    pdf_bytes = matchups_to_pdf(combined_df)
+                    st.download_button(
+                        "Download PDF",
+                        pdf_bytes,
+                        "matchups.pdf",
+                        "application/pdf"
                     )
                 else:
                     st.warning("No matchup data to download.")
