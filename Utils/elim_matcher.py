@@ -2,8 +2,6 @@ import pandas as pd
 from typing import List
 import random
 
-from app import final_matchups
-
 
 def o_n_alternate2(lower_bound : int = 0, upper_bound : int = 100):
 	"""
