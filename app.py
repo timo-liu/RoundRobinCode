@@ -53,7 +53,6 @@ def matchups_to_pdf(df: pd.DataFrame) -> bytes:
 
 # endregion Utils
 
-
 st.title("Round Robin Matcher")
 
 # =========================
@@ -196,9 +195,6 @@ if process_clicked:
         )
 
         if format_type == "Round Robin":
-            # Pass a list of people per flight per division:
-            # If you want to pass a dict or list depends on match_individuals API.
-            # Here we pass the division_sizes.values() as before.
             final_matchups = match_individuals(
                 df,
                 people_per_flight=list(division_sizes.values()) if division_sizes else 4,
@@ -242,5 +238,11 @@ if process_clicked:
             else:
                 st.warning("No matchup data to download.")
 
-        else:
-            st.warning("Eliminations are not implemented yet.")
+        else:  # Eliminations format
+            # Use your match_teams function here from elim_matcher.py or your Utils
+            final_teams_dict = match_teams(df, people_per_team=team_size)
+
+            for division, teams in final_teams_dict.items():
+                st.markdown(f"### Division: {division}")
+                for team in teams:
+                    st.text(team)
