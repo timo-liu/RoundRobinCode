@@ -50,71 +50,91 @@ def o_n_alternate3(lower_bound: int = 0, upper_bound: int = 100):
                 final_seeds.append(l_seeds[i])
     return final_indices, final_seeds
 
-def create_teams(names: List[str], matching_indices: List[int], seeds: List[int], team_size: int = 2):
+def create_teams(
+    names: List[str],
+    matching_indices: List[int],
+    seeds: List[int],  # seeds here unused for team seeds; kept for compatibility
+    qual_scores: List[float],
+    team_size: int = 2
+) -> List[str]:
 
-    final_teams = []
+    teams_with_scores = []
 
     match team_size:
         case 2:
-            # If odd number of players, insert Gunrock placeholder at front (index 0)
             if len(names) % 2 != 0:
                 names.insert(0, "Gunrock")
-                seeds.insert(0, "−∞")  # You can use 0 or -inf as placeholder seed
+                seeds.insert(0, "−∞")
+                qual_scores.insert(0, 0)
 
             assert len(matching_indices) % 2 == 0, "Number of matching indices must be even."
 
             for i in range(0, len(matching_indices), 2):
                 p1 = matching_indices[i]
                 p2 = matching_indices[i + 1]
-                pair = f"{names[p1]} ({seeds[p1]}) and {names[p2]} ({seeds[p2]})"
-                print(pair)
-                final_teams.append(pair)
+
+                team_qual_sum = qual_scores[p1] + qual_scores[p2]
+                team_str = (
+                    f"{names[p1]} ({seeds[p1]}) and {names[p2]} ({seeds[p2]})"
+                )
+                teams_with_scores.append((team_str, team_qual_sum))
 
         case 3:
-            # You can apply similar zero-based logic here if needed
             if len(names) % 3 != 0:
                 if len(names) % 3 == 1:
                     for i in range(0, len(matching_indices) - 4, 3):
-                        triplet = (
-                            f"{names[matching_indices[i]]} ({seeds[matching_indices[i]]}), "
-                            f"{names[matching_indices[i + 1]]} ({seeds[matching_indices[i + 1]]}), "
-                            f"{names[matching_indices[i + 2]]} ({seeds[matching_indices[i + 2]]})"
+                        p1, p2, p3 = matching_indices[i], matching_indices[i + 1], matching_indices[i + 2]
+                        team_qual_sum = qual_scores[p1] + qual_scores[p2] + qual_scores[p3]
+                        team_str = (
+                            f"{names[p1]} ({seeds[p1]}), {names[p2]} ({seeds[p2]}), {names[p3]} ({seeds[p3]})"
                         )
-                        final_teams.append(triplet)
+                        teams_with_scores.append((team_str, team_qual_sum))
+
                     last_four = matching_indices[-4:]
-                    final_teams.append(
-                        f"{names[last_four[0]]} ({seeds[last_four[0]]}) and {names[last_four[1]]} ({seeds[last_four[1]]})"
-                    )
-                    final_teams.append(
-                        f"{names[last_four[2]]} ({seeds[last_four[2]]}) and {names[last_four[3]]} ({seeds[last_four[3]]})"
-                    )
+                    for i in range(0, 4, 2):
+                        p1, p2 = last_four[i], last_four[i + 1]
+                        team_qual_sum = qual_scores[p1] + qual_scores[p2]
+                        team_str = f"{names[p1]} ({seeds[p1]}) and {names[p2]} ({seeds[p2]})"
+                        teams_with_scores.append((team_str, team_qual_sum))
+
                 elif len(names) % 3 == 2:
                     for i in range(0, len(matching_indices) - 2, 3):
-                        triplet = (
-                            f"{names[matching_indices[i]]} ({seeds[matching_indices[i]]}), "
-                            f"{names[matching_indices[i + 1]]} ({seeds[matching_indices[i + 1]]}), "
-                            f"{names[matching_indices[i + 2]]} ({seeds[matching_indices[i + 2]]})"
+                        p1, p2, p3 = matching_indices[i], matching_indices[i + 1], matching_indices[i + 2]
+                        team_qual_sum = qual_scores[p1] + qual_scores[p2] + qual_scores[p3]
+                        team_str = (
+                            f"{names[p1]} ({seeds[p1]}), {names[p2]} ({seeds[p2]}), {names[p3]} ({seeds[p3]})"
                         )
-                        final_teams.append(triplet)
+                        teams_with_scores.append((team_str, team_qual_sum))
+
                     last_two = matching_indices[-2:]
-                    final_teams.append(
-                        f"{names[last_two[0]]} ({seeds[last_two[0]]}) and {names[last_two[1]]} ({seeds[last_two[1]]})"
-                    )
+                    p1, p2 = last_two[0], last_two[1]
+                    team_qual_sum = qual_scores[p1] + qual_scores[p2]
+                    team_str = f"{names[p1]} ({seeds[p1]}) and {names[p2]} ({seeds[p2]})"
+                    teams_with_scores.append((team_str, team_qual_sum))
+
             else:
-                # If multiple of 3, group in triplets normally
                 for i in range(0, len(matching_indices), 3):
-                    triplet = (
-                        f"{names[matching_indices[i]]} ({seeds[matching_indices[i]]}), "
-                        f"{names[matching_indices[i + 1]]} ({seeds[matching_indices[i + 1]]}), "
-                        f"{names[matching_indices[i + 2]]} ({seeds[matching_indices[i + 2]]})"
+                    p1, p2, p3 = matching_indices[i], matching_indices[i + 1], matching_indices[i + 2]
+                    team_qual_sum = qual_scores[p1] + qual_scores[p2] + qual_scores[p3]
+                    team_str = (
+                        f"{names[p1]} ({seeds[p1]}), {names[p2]} ({seeds[p2]}), {names[p3]} ({seeds[p3]})"
                     )
-                    final_teams.append(triplet)
+                    teams_with_scores.append((team_str, team_qual_sum))
+
+    # Sort teams by total QualScore ascending (lowest total = seed 1)
+    teams_with_scores.sort(key=lambda x: x[1], reverse=True)
+
+    # Assign seeds and format output strings with seed info
+    final_teams = []
+    for seed, (team_str, total_points) in enumerate(teams_with_scores, start=1):
+        final_teams.append(f"{team_str} [Total Points: {total_points} (Seed {seed})]")
 
     return final_teams
 
 def match_teams(scores: pd.DataFrame, people_per_team: int = 2) -> Dict[str, List[str]]:
     divisions = scores["Division"].unique()
     flight_dict = {}
+
     for division in divisions:
         if "QualScore" not in scores.columns:
             round_cols = [f"R{i}" for i in range(1, 11)]
@@ -126,10 +146,11 @@ def match_teams(scores: pd.DataFrame, people_per_team: int = 2) -> Dict[str, Lis
 
         section = section.sort_values(by=["QualScore"], ascending=True)
         names = section["Name"].copy().tolist()
+        qual_scores = section["QualScore"].copy().tolist()
 
-        # Insert Gunrock if odd and 2 person teams
         if people_per_team == 2 and len(names) % 2 != 0:
             names.insert(0, "Gunrock")
+            qual_scores.insert(0, 0)
 
         num_players = len(names)
 
@@ -139,15 +160,12 @@ def match_teams(scores: pd.DataFrame, people_per_team: int = 2) -> Dict[str, Lis
             matching_indices, matching_seeds = o_n_alternate3(0, num_players - 1)
         else:
             raise NotImplementedError("Only 2 and 3 person teams are supported.")
-
-        # For 2 teams, insert seed 0 or -inf for Gunrock
         matching_seeds = [seed if seed != 1 or names[idx] != "Gunrock" else 0 for idx, seed in enumerate(matching_seeds)]
-
-        # Insert seed for Gunrock if not already (handle in create_teams)
         if "Gunrock" in names and "−∞" not in matching_seeds:
             idx_gunrock = names.index("Gunrock")
             matching_seeds[idx_gunrock] = "−∞"
 
-        final_teams = create_teams(names, matching_indices, matching_seeds, people_per_team)
+        final_teams = create_teams(names, matching_indices, matching_seeds, qual_scores, people_per_team)
         flight_dict[division] = final_teams
+
     return flight_dict
