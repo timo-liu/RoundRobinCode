@@ -9,7 +9,7 @@ def match_individuals(scores : pd.DataFrame, people_per_flight : Union[int, List
 	:return:
 	"""
 
-	divisions = scores["Division"].unique()
+	divisions = sorted(scores["Division"].unique())
 
 	if isinstance(people_per_flight, List):
 		assert len(people_per_flight) == len(divisions), "List entry people per flight should match the number of divisions."
@@ -23,8 +23,7 @@ def match_individuals(scores : pd.DataFrame, people_per_flight : Union[int, List
 			section = scores[scores["Division"] == division].copy()
 			section["QualScore"] = section[round_cols].sum(axis=1)
 			section = section.drop(columns=round_cols)
-		else:
-			section = scores[scores["Division"] == division].copy()
+		section = scores[scores["Division"] == division].copy()
 		section = section.sort_values(by=["QualScore"], ascending=False)
 
 		flights = [section.iloc[i:i+people_in_this_flight] for i in range(0, len(section), people_in_this_flight)]
@@ -43,25 +42,6 @@ def match_individuals(scores : pd.DataFrame, people_per_flight : Union[int, List
 			division_matchups = rr(flight_names, algorithm)
 			flight_dict[division][i + 1] = division_matchups
 	return flight_dict
-
-
-def o_n_alternate(lower_bound : int = 0, upper_bound : int = 100):
-	"""
-	Create an alternating list of high low indices for matching
-	There's an O(n) algorithm, that's pretty cool.
-	:param lower_bound:
-	:param upper_bound:
-	:return:
-	"""
-	indices = list(range(lower_bound, upper_bound + 1))
-	final = []
-	for i, a in enumerate(indices):
-		if i == 0 or (i%2 and i > final[-1]) or (not i%2 and i < final[-1]):
-			final.append(a)
-		else:
-			final.insert(i - 1, a)
-
-	return final
 
 def step_list_circular(arr : List, steps : int = 0):
 	"""

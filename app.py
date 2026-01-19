@@ -115,19 +115,9 @@ st.markdown("---")
 # OPTIONS
 # =========================
 with st.container():
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
-        num_flights = st.number_input(
-            "People per Flight",
-            min_value=1,
-            max_value=4,
-            value=2,
-            step=1,
-            disabled=(format_type != "Round Robin")
-        )
-
-    with col2:
         algorithm = st.selectbox(
             "Matching Algorithm",
             options=["berger"],
@@ -135,10 +125,10 @@ with st.container():
             disabled=(format_type != "Round Robin")
         )
 
-    with col3:
+    with col2:
         remove_errors = st.checkbox("Remove Errors", value=False)
 
-    with col4:
+    with col3:
         if format_type == "Eliminations":
             team_size = st.selectbox(
                 "People per Team",
@@ -200,7 +190,7 @@ if process_clicked:
     else:
         st.info(
             f"Processing {format_type} | "
-            f"Flights: {num_flights} | "
+            f"People per Flight: {division_sizes} | "
             f"Algorithm: {algorithm} | "
             f"Team Size: {team_size}"
         )

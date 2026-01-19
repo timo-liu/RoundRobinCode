@@ -1,4 +1,3 @@
-from Utils import *
 import argparse
 
 from Utils import load_scores
