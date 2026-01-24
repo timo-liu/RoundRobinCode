@@ -2,4 +2,3 @@ pandas
 streamlit
 reportlab
 altair==4.0
-imghdr
